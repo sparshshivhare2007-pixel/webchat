@@ -3,6 +3,9 @@ const http = require('http');
 const socketIo = require('socket.io');
 const path = require('path');
 
+// ⭐ INDIAN STANDARD TIME SET KAREIN
+process.env.TZ = 'Asia/Kolkata';
+
 const app = express();
 const server = http.createServer(app);
 const io = socketIo(server, {
@@ -18,8 +21,32 @@ app.use(express.static('public'));
 const rooms = {};
 const onlineUsers = {};
 
+// ⭐ HELPER FUNCTION - IST TIME (Full Date + Time)
+function getISTTime() {
+    return new Date().toLocaleString('en-IN', {
+        timeZone: 'Asia/Kolkata',
+        day: '2-digit',
+        month: 'short',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+        hour12: true
+    });
+}
+
+// ⭐ HELPER FUNCTION - Sirf Time (Short)
+function getISTTimeShort() {
+    return new Date().toLocaleTimeString('en-IN', {
+        timeZone: 'Asia/Kolkata',
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: true
+    });
+}
+
 io.on('connection', (socket) => {
-    console.log(`🟢 User Connected: ${socket.id}`);
+    console.log(`🟢 User Connected: ${socket.id} at ${getISTTime()}`);
 
     // Join Room
     socket.on('join-room', (data) => {
@@ -56,26 +83,27 @@ io.on('connection', (socket) => {
         // Send online users count
         io.to(roomName).emit('online-count', rooms[roomName].users.length);
         
-        // Welcome message
+        // ⭐ Welcome message with IST time
         const welcomeMsg = {
             user: '🟢 System',
             text: `${socket.username} joined the chat!`,
-            time: new Date().toLocaleTimeString(),
+            time: getISTTime(),  // ← Full date + time
             isSystem: true
         };
         io.to(roomName).emit('receive-message', welcomeMsg);
         
-        console.log(`📢 ${socket.username} joined ${roomName}`);
+        console.log(`📢 ${socket.username} joined ${roomName} at ${getISTTime()}`);
     });
 
     // Handle new message
     socket.on('send-message', (msg) => {
         const room = socket.currentRoom;
         if (room && rooms[room]) {
+            // ⭐ Message with IST time
             const messageData = {
                 user: socket.username,
                 text: msg.text,
-                time: new Date().toLocaleTimeString(),
+                time: getISTTime(),  // ← Full date + time
                 userId: socket.id,
                 isSystem: false
             };
@@ -98,7 +126,7 @@ io.on('connection', (socket) => {
 
     // Handle disconnect
     socket.on('disconnect', () => {
-        console.log(`🔴 User Disconnected: ${socket.id}`);
+        console.log(`🔴 User Disconnected: ${socket.id} at ${getISTTime()}`);
         
         if (socket.currentRoom && rooms[socket.currentRoom]) {
             // Remove user from room
@@ -109,11 +137,11 @@ io.on('connection', (socket) => {
             // Update online count
             io.to(socket.currentRoom).emit('online-count', rooms[socket.currentRoom].users.length);
             
-            // Leave message
+            // ⭐ Leave message with IST time
             const leaveMsg = {
                 user: '🔴 System',
                 text: `${socket.username || 'Someone'} left the chat`,
-                time: new Date().toLocaleTimeString(),
+                time: getISTTime(),  // ← Full date + time
                 isSystem: true
             };
             io.to(socket.currentRoom).emit('receive-message', leaveMsg);
@@ -124,4 +152,5 @@ io.on('connection', (socket) => {
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
     console.log(`🚀 Server running on http://localhost:${PORT}`);
+    console.log(`🕐 Current IST Time: ${getISTTime()}`);
 });

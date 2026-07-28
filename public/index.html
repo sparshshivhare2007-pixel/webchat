@@ -106,12 +106,25 @@
                 </div>
             </div>
 
-            <!-- Input -->
+            <!-- ⭐ UPDATED INPUT with Voice & Attachment -->
             <div class="chat-input">
-                <button id="emoji-btn"><i class="fas fa-smile"></i></button>
+                <button id="attach-btn" title="Attach File"><i class="fas fa-paperclip"></i></button>
+                <button id="voice-btn" title="Voice Note"><i class="fas fa-microphone"></i></button>
                 <input type="text" id="message-input" placeholder="Type a message...">
                 <button id="send-btn"><i class="fas fa-paper-plane"></i></button>
             </div>
+        </div>
+    </div>
+
+    <!-- ⭐ Hidden File Input -->
+    <input type="file" id="file-input" style="display:none;" accept="image/*,.pdf,.doc,.docx,.txt,.mp3,.wav,.mp4,.webm">
+
+    <!-- ⭐ Voice Recording Status -->
+    <div id="voice-recording" style="display:none; position:fixed; bottom:120px; left:50%; transform:translateX(-50%); background:white; padding:20px 30px; border-radius:15px; box-shadow:0 10px 40px rgba(0,0,0,0.2); z-index:1000;">
+        <div style="display:flex; align-items:center; gap:15px;">
+            <div style="width:15px; height:15px; background:red; border-radius:50%; animation:pulse 1s infinite;"></div>
+            <span style="font-size:16px; font-weight:500;">Recording... <span id="recording-timer">0s</span></span>
+            <button id="stop-recording-btn" style="background:#dc3545; color:white; border:none; padding:8px 20px; border-radius:10px; cursor:pointer; font-weight:500;">Stop</button>
         </div>
     </div>
 

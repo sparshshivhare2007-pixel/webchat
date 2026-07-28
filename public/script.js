@@ -17,10 +17,25 @@ const emojiToggle = document.getElementById('emoji-toggle');
 const emojiPicker = document.getElementById('emoji-picker');
 const emojiBtn = document.getElementById('emoji-btn');
 
+// ========== NEW DOM Elements for Voice & Attachment ==========
+const attachBtn = document.getElementById('attach-btn');
+const voiceBtn = document.getElementById('voice-btn');
+const fileInput = document.getElementById('file-input');
+const voiceRecording = document.getElementById('voice-recording');
+const recordingTimer = document.getElementById('recording-timer');
+const stopRecordingBtn = document.getElementById('stop-recording-btn');
+
 let currentRoom = '';
 let username = '';
 let typingTimeout = null;
 let isDarkMode = false;
+
+// ========== Voice Recording Variables ==========
+let mediaRecorder = null;
+let audioChunks = [];
+let recordingStartTime = null;
+let recordingInterval = null;
+let isRecording = false;
 
 // ========== Auto-generate username ==========
 const randomNum = Math.floor(Math.random() * 1000);
@@ -136,7 +151,7 @@ socket.on('user-typing', (data) => {
     }
 });
 
-// ========== Display Message ==========
+// ========== DISPLAY MESSAGE (Updated for Voice & File) ==========
 function displayMessage(msg) {
     const msgDiv = document.createElement('div');
     msgDiv.className = 'message';
@@ -146,26 +161,230 @@ function displayMessage(msg) {
         msgDiv.innerHTML = `<div class="msg-text">${msg.text}</div>`;
     } else if (msg.user === username) {
         msgDiv.classList.add('own');
-        msgDiv.innerHTML = `
-            <div class="msg-user">
-                <span>${msg.user}</span>
-                <span class="msg-time">${msg.time}</span>
-            </div>
-            <div class="msg-text">${msg.text}</div>
-        `;
+        msgDiv.innerHTML = getMessageHTML(msg, true);
     } else {
         msgDiv.classList.add('other');
-        msgDiv.innerHTML = `
+        msgDiv.innerHTML = getMessageHTML(msg, false);
+    }
+    
+    messagesDiv.appendChild(msgDiv);
+    messagesDiv.parentElement.scrollTop = messagesDiv.parentElement.scrollHeight;
+}
+
+// ========== Get Message HTML (Supports Text, Voice, File) ==========
+function getMessageHTML(msg, isOwn) {
+    let content = '';
+    const timeDisplay = msg.time || new Date().toLocaleTimeString();
+    
+    if (msg.type === 'voice') {
+        // Voice Note
+        content = `
             <div class="msg-user">
                 <span>${msg.user}</span>
-                <span class="msg-time">${msg.time}</span>
+                <span class="msg-time">${timeDisplay}</span>
+            </div>
+            <div class="msg-text voice-message">
+                <audio controls style="width:100%; max-width:250px; height:40px; border-radius:20px;">
+                    <source src="${msg.audioUrl}" type="audio/webm">
+                    Your browser does not support audio.
+                </audio>
+                <span style="font-size:12px; color:#999; margin-left:5px;">${msg.duration || 0}s</span>
+            </div>
+        `;
+    } else if (msg.type === 'file') {
+        // File Attachment
+        const isImage = msg.fileType && msg.fileType.startsWith('image/');
+        content = `
+            <div class="msg-user">
+                <span>${msg.user}</span>
+                <span class="msg-time">${timeDisplay}</span>
+            </div>
+            <div class="msg-text file-message">
+                ${isImage ? 
+                    `<img src="${msg.fileUrl}" style="max-width:200px; max-height:200px; border-radius:10px; cursor:pointer; border:2px solid #e0e0e0;" onclick="window.open('${msg.fileUrl}')" onerror="this.style.display='none'">` :
+                    `<div style="display:flex; align-items:center; gap:10px; padding:10px; background:#f0f0f0; border-radius:10px; cursor:pointer;" onclick="window.open('${msg.fileUrl}')">
+                        <i class="fas ${getFileIcon(msg.fileType)}" style="font-size:24px; color:#667eea;"></i>
+                        <div>
+                            <div style="font-weight:500; font-size:14px;">${msg.fileName || 'File'}</div>
+                            <div style="font-size:12px; color:#999;">${formatFileSize(msg.fileSize || 0)}</div>
+                        </div>
+                    </div>`
+                }
+            </div>
+        `;
+    } else {
+        // Text Message
+        content = `
+            <div class="msg-user">
+                <span>${msg.user}</span>
+                <span class="msg-time">${timeDisplay}</span>
             </div>
             <div class="msg-text">${msg.text}</div>
         `;
     }
     
-    messagesDiv.appendChild(msgDiv);
-    messagesDiv.parentElement.scrollTop = messagesDiv.parentElement.scrollHeight;
+    return content;
+}
+
+// ========== File Icon Helper ==========
+function getFileIcon(fileType) {
+    if (!fileType) return 'fa-file';
+    if (fileType.startsWith('image/')) return 'fa-image';
+    if (fileType === 'application/pdf') return 'fa-file-pdf';
+    if (fileType.includes('word')) return 'fa-file-word';
+    if (fileType.includes('text')) return 'fa-file-alt';
+    if (fileType.includes('audio')) return 'fa-file-audio';
+    if (fileType.includes('video')) return 'fa-file-video';
+    return 'fa-file';
+}
+
+// ========== File Size Formatter ==========
+function formatFileSize(bytes) {
+    if (bytes < 1024) return bytes + ' B';
+    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+    return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+}
+
+// ========== FILE ATTACHMENT ==========
+attachBtn.addEventListener('click', () => {
+    fileInput.click();
+});
+
+fileInput.addEventListener('change', async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    // Show uploading message
+    const tempMsg = {
+        user: username,
+        text: `📤 Uploading ${file.name}...`,
+        time: new Date().toLocaleTimeString(),
+        isSystem: false,
+        type: 'text'
+    };
+    displayMessage(tempMsg);
+
+    // Upload file
+    const formData = new FormData();
+    formData.append('file', file);
+
+    try {
+        const response = await fetch('/upload', {
+            method: 'POST',
+            body: formData
+        });
+
+        const result = await response.json();
+
+        if (result.url) {
+            // Send attachment via socket
+            socket.emit('send-attachment', {
+                fileUrl: result.url,
+                fileName: result.name,
+                fileType: result.type,
+                fileSize: result.size
+            });
+        }
+
+    } catch (error) {
+        console.error('Upload error:', error);
+        const errorMsg = {
+            user: '🔴 System',
+            text: '❌ Failed to upload file!',
+            time: new Date().toLocaleTimeString(),
+            isSystem: true
+        };
+        displayMessage(errorMsg);
+    }
+
+    fileInput.value = '';
+});
+
+// ========== VOICE RECORDING ==========
+voiceBtn.addEventListener('click', async () => {
+    if (isRecording) {
+        stopRecording();
+        return;
+    }
+
+    try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        mediaRecorder = new MediaRecorder(stream);
+        audioChunks = [];
+
+        mediaRecorder.ondataavailable = (event) => {
+            audioChunks.push(event.data);
+        };
+
+        mediaRecorder.onstop = async () => {
+            const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+            const audioUrl = URL.createObjectURL(audioBlob);
+            
+            // Calculate duration
+            const duration = Math.round((Date.now() - recordingStartTime) / 1000);
+            
+            // Send voice message
+            socket.emit('send-voice', {
+                audioUrl: audioUrl,
+                duration: duration
+            });
+
+            // Display voice message in chat
+            const voiceMsg = {
+                user: username,
+                text: '🎙️ Voice Note',
+                time: new Date().toLocaleTimeString(),
+                isSystem: false,
+                type: 'voice',
+                audioUrl: audioUrl,
+                duration: duration
+            };
+            displayMessage(voiceMsg);
+
+            // Clean up
+            stream.getTracks().forEach(track => track.stop());
+            voiceRecording.style.display = 'none';
+            voiceBtn.innerHTML = '<i class="fas fa-microphone"></i>';
+            voiceBtn.classList.remove('recording');
+            isRecording = false;
+            clearInterval(recordingInterval);
+        };
+
+        mediaRecorder.start();
+        recordingStartTime = Date.now();
+        isRecording = true;
+        voiceBtn.innerHTML = '<i class="fas fa-stop-circle" style="color:red;"></i>';
+        voiceBtn.classList.add('recording');
+        voiceRecording.style.display = 'block';
+        
+        // Timer
+        let seconds = 0;
+        recordingTimer.textContent = '0s';
+        recordingInterval = setInterval(() => {
+            seconds++;
+            recordingTimer.textContent = `${seconds}s`;
+            if (seconds >= 60) {
+                stopRecording();
+            }
+        }, 1000);
+
+    } catch (error) {
+        console.error('Microphone error:', error);
+        alert('⚠️ Please allow microphone access to record voice notes!');
+    }
+});
+
+stopRecordingBtn.addEventListener('click', stopRecording);
+
+function stopRecording() {
+    if (mediaRecorder && isRecording) {
+        mediaRecorder.stop();
+        voiceRecording.style.display = 'none';
+        voiceBtn.innerHTML = '<i class="fas fa-microphone"></i>';
+        voiceBtn.classList.remove('recording');
+        clearInterval(recordingInterval);
+        isRecording = false;
+    }
 }
 
 // ========== Emoji Picker ==========

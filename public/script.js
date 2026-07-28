@@ -17,7 +17,7 @@ const emojiToggle = document.getElementById('emoji-toggle');
 const emojiPicker = document.getElementById('emoji-picker');
 const emojiBtn = document.getElementById('emoji-btn');
 
-// ========== NEW DOM Elements for Voice & Attachment ==========
+// ========== DOM Elements for Voice & Attachment ==========
 const attachBtn = document.getElementById('attach-btn');
 const voiceBtn = document.getElementById('voice-btn');
 const fileInput = document.getElementById('file-input');
@@ -29,6 +29,7 @@ let currentRoom = '';
 let username = '';
 let typingTimeout = null;
 let isDarkMode = false;
+let lastDate = ''; // ⭐ Track last message date
 
 // ========== Voice Recording Variables ==========
 let mediaRecorder = null;
@@ -66,7 +67,6 @@ function joinChat() {
 
     currentRoom = `${state}-${region}-${language}`;
     
-    // Show room name with emojis
     const stateNames = {
         'uttar-pradesh': 'UP', 'maharashtra': 'MH', 'delhi': 'DL',
         'bihar': 'BR', 'rajasthan': 'RJ', 'tamil-nadu': 'TN',
@@ -91,6 +91,7 @@ function leaveChat() {
         selectionScreen.style.display = 'flex';
         messagesDiv.innerHTML = '';
         document.getElementById('online-count').textContent = '0';
+        lastDate = ''; // ⭐ Reset date
     }
 }
 
@@ -108,8 +109,6 @@ function sendMessage() {
     socket.emit('send-message', msgData);
     messageInput.value = '';
     messageInput.focus();
-    
-    // Hide emoji picker
     emojiPicker.style.display = 'none';
 }
 
@@ -151,8 +150,32 @@ socket.on('user-typing', (data) => {
     }
 });
 
-// ========== DISPLAY MESSAGE (Updated for Voice & File) ==========
+// ========== ⭐ DISPLAY MESSAGE - CLEAN VERSION ==========
 function displayMessage(msg) {
+    // ⭐ Extract date from time
+    let msgDate = '';
+    let msgTime = '';
+    
+    if (msg.time) {
+        // Format: "28 Jul, 2026, 08:30:15 PM"
+        const parts = msg.time.split(',');
+        if (parts.length >= 2) {
+            msgDate = parts[0].trim(); // "28 Jul, 2026"
+            msgTime = parts.slice(1).join(',').trim(); // "08:30:15 PM"
+        } else {
+            msgTime = msg.time;
+        }
+    }
+    
+    // ⭐ Add date separator if new day (only for non-system messages)
+    if (msgDate && msgDate !== lastDate && !msg.isSystem) {
+        const dateDiv = document.createElement('div');
+        dateDiv.className = 'date-separator';
+        dateDiv.textContent = msgDate;
+        messagesDiv.appendChild(dateDiv);
+        lastDate = msgDate;
+    }
+    
     const msgDiv = document.createElement('div');
     msgDiv.className = 'message';
     
@@ -161,69 +184,52 @@ function displayMessage(msg) {
         msgDiv.innerHTML = `<div class="msg-text">${msg.text}</div>`;
     } else if (msg.user === username) {
         msgDiv.classList.add('own');
-        msgDiv.innerHTML = getMessageHTML(msg, true);
+        msgDiv.innerHTML = `
+            <div class="msg-text">${getMessageContent(msg)}</div>
+            <div class="msg-time">${msgTime}</div>
+        `;
     } else {
         msgDiv.classList.add('other');
-        msgDiv.innerHTML = getMessageHTML(msg, false);
+        msgDiv.innerHTML = `
+            <div class="msg-text">${getMessageContent(msg)}</div>
+            <div class="msg-time">${msgTime}</div>
+        `;
     }
     
     messagesDiv.appendChild(msgDiv);
     messagesDiv.parentElement.scrollTop = messagesDiv.parentElement.scrollHeight;
 }
 
-// ========== Get Message HTML (Supports Text, Voice, File) ==========
-function getMessageHTML(msg, isOwn) {
-    let content = '';
-    const timeDisplay = msg.time || new Date().toLocaleTimeString();
-    
+// ========== ⭐ Get Message Content (Text, Voice, File) ==========
+function getMessageContent(msg) {
     if (msg.type === 'voice') {
-        // Voice Note
-        content = `
-            <div class="msg-user">
-                <span>${msg.user}</span>
-                <span class="msg-time">${timeDisplay}</span>
-            </div>
-            <div class="msg-text voice-message">
-                <audio controls style="width:100%; max-width:250px; height:40px; border-radius:20px;">
+        return `
+            <div class="voice-message">
+                <audio controls style="width:100%; max-width:200px; height:36px; border-radius:20px;">
                     <source src="${msg.audioUrl}" type="audio/webm">
                     Your browser does not support audio.
                 </audio>
-                <span style="font-size:12px; color:#999; margin-left:5px;">${msg.duration || 0}s</span>
+                <span class="duration">${msg.duration || 0}s</span>
             </div>
         `;
     } else if (msg.type === 'file') {
-        // File Attachment
         const isImage = msg.fileType && msg.fileType.startsWith('image/');
-        content = `
-            <div class="msg-user">
-                <span>${msg.user}</span>
-                <span class="msg-time">${timeDisplay}</span>
-            </div>
-            <div class="msg-text file-message">
-                ${isImage ? 
-                    `<img src="${msg.fileUrl}" style="max-width:200px; max-height:200px; border-radius:10px; cursor:pointer; border:2px solid #e0e0e0;" onclick="window.open('${msg.fileUrl}')" onerror="this.style.display='none'">` :
-                    `<div style="display:flex; align-items:center; gap:10px; padding:10px; background:#f0f0f0; border-radius:10px; cursor:pointer;" onclick="window.open('${msg.fileUrl}')">
-                        <i class="fas ${getFileIcon(msg.fileType)}" style="font-size:24px; color:#667eea;"></i>
-                        <div>
-                            <div style="font-weight:500; font-size:14px;">${msg.fileName || 'File'}</div>
-                            <div style="font-size:12px; color:#999;">${formatFileSize(msg.fileSize || 0)}</div>
-                        </div>
-                    </div>`
-                }
-            </div>
-        `;
+        if (isImage) {
+            return `<img src="${msg.fileUrl}" style="max-width:180px; max-height:180px; border-radius:10px; cursor:pointer;" onclick="window.open('${msg.fileUrl}')" onerror="this.style.display='none'">`;
+        } else {
+            return `
+                <div class="file-card" onclick="window.open('${msg.fileUrl}')">
+                    <i class="fas ${getFileIcon(msg.fileType)}" style="font-size:24px; color:#667eea;"></i>
+                    <div class="file-info">
+                        <div class="file-name">${msg.fileName || 'File'}</div>
+                        <div class="file-size">${formatFileSize(msg.fileSize || 0)}</div>
+                    </div>
+                </div>
+            `;
+        }
     } else {
-        // Text Message
-        content = `
-            <div class="msg-user">
-                <span>${msg.user}</span>
-                <span class="msg-time">${timeDisplay}</span>
-            </div>
-            <div class="msg-text">${msg.text}</div>
-        `;
+        return msg.text;
     }
-    
-    return content;
 }
 
 // ========== File Icon Helper ==========
@@ -254,17 +260,6 @@ fileInput.addEventListener('change', async (e) => {
     const file = e.target.files[0];
     if (!file) return;
 
-    // Show uploading message
-    const tempMsg = {
-        user: username,
-        text: `📤 Uploading ${file.name}...`,
-        time: new Date().toLocaleTimeString(),
-        isSystem: false,
-        type: 'text'
-    };
-    displayMessage(tempMsg);
-
-    // Upload file
     const formData = new FormData();
     formData.append('file', file);
 
@@ -277,7 +272,6 @@ fileInput.addEventListener('change', async (e) => {
         const result = await response.json();
 
         if (result.url) {
-            // Send attachment via socket
             socket.emit('send-attachment', {
                 fileUrl: result.url,
                 fileName: result.name,
@@ -288,13 +282,6 @@ fileInput.addEventListener('change', async (e) => {
 
     } catch (error) {
         console.error('Upload error:', error);
-        const errorMsg = {
-            user: '🔴 System',
-            text: '❌ Failed to upload file!',
-            time: new Date().toLocaleTimeString(),
-            isSystem: true
-        };
-        displayMessage(errorMsg);
     }
 
     fileInput.value = '';
@@ -320,28 +307,13 @@ voiceBtn.addEventListener('click', async () => {
             const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
             const audioUrl = URL.createObjectURL(audioBlob);
             
-            // Calculate duration
             const duration = Math.round((Date.now() - recordingStartTime) / 1000);
             
-            // Send voice message
             socket.emit('send-voice', {
                 audioUrl: audioUrl,
                 duration: duration
             });
 
-            // Display voice message in chat
-            const voiceMsg = {
-                user: username,
-                text: '🎙️ Voice Note',
-                time: new Date().toLocaleTimeString(),
-                isSystem: false,
-                type: 'voice',
-                audioUrl: audioUrl,
-                duration: duration
-            };
-            displayMessage(voiceMsg);
-
-            // Clean up
             stream.getTracks().forEach(track => track.stop());
             voiceRecording.style.display = 'none';
             voiceBtn.innerHTML = '<i class="fas fa-microphone"></i>';
@@ -357,7 +329,6 @@ voiceBtn.addEventListener('click', async () => {
         voiceBtn.classList.add('recording');
         voiceRecording.style.display = 'block';
         
-        // Timer
         let seconds = 0;
         recordingTimer.textContent = '0s';
         recordingInterval = setInterval(() => {
@@ -417,7 +388,6 @@ function shakeElement(el) {
     setTimeout(() => el.style.animation = '', 500);
 }
 
-// Add shake animation dynamically
 const style = document.createElement('style');
 style.textContent = `
     @keyframes shake {

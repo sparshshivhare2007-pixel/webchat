@@ -205,7 +205,7 @@ body {
     transform: scale(1.05);
 }
 
-/* Messages */
+/* ========== MESSAGES CONTAINER ========== */
 #messages-container {
     flex: 1;
     overflow-y: auto;
@@ -220,26 +220,55 @@ body {
     flex: 1;
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    gap: 4px;
 }
 
+/* ⭐ DATE SEPARATOR - Top pe date */
+.date-separator {
+    text-align: center;
+    font-size: 12px;
+    color: #888;
+    padding: 10px 0 15px 0;
+    font-weight: 500;
+    letter-spacing: 0.5px;
+}
+
+/* ⭐ MESSAGE - Clean, No Username */
 .message {
-    max-width: 80%;
-    padding: 10px 15px;
-    border-radius: 15px;
+    max-width: 75%;
+    padding: 8px 14px;
+    border-radius: 12px;
     animation: messageSlide 0.3s ease;
     word-wrap: break-word;
     position: relative;
 }
 
+.message .msg-text {
+    font-size: 14px;
+    line-height: 1.5;
+}
+
+/* ⭐ TIME - Small, neeche */
+.message .msg-time {
+    font-size: 10px;
+    opacity: 0.6;
+    margin-top: 4px;
+    text-align: right;
+    letter-spacing: 0.3px;
+}
+
+/* System Messages */
 .message.system {
     background: #e8f0fe;
     text-align: center;
     max-width: 100%;
     font-size: 13px;
     color: #555;
+    padding: 6px 12px;
+    border-radius: 8px;
 }
 
+/* ⭐ Own Messages (Right side) */
 .message.own {
     background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
     color: white;
@@ -247,31 +276,20 @@ body {
     border-bottom-right-radius: 4px;
 }
 
+.message.own .msg-time {
+    color: rgba(255,255,255,0.7);
+}
+
+/* ⭐ Other Messages (Left side) */
 .message.other {
     background: white;
     align-self: flex-start;
     border-bottom-left-radius: 4px;
-    box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+    box-shadow: 0 1px 3px rgba(0,0,0,0.08);
 }
 
-.message .msg-user {
-    font-weight: 600;
-    font-size: 13px;
-    margin-bottom: 3px;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-}
-
-.message .msg-time {
-    font-size: 10px;
-    opacity: 0.7;
-    margin-left: 10px;
-}
-
-.message .msg-text {
-    font-size: 14px;
-    line-height: 1.4;
+.message.other .msg-time {
+    color: #999;
 }
 
 #typing-indicator {
@@ -282,7 +300,7 @@ body {
     animation: pulse 1.5s infinite;
 }
 
-/* ========== ⭐ CHAT INPUT - Updated with Voice & Attachment ========== */
+/* ========== CHAT INPUT ========== */
 .chat-input {
     display: flex;
     gap: 8px;
@@ -351,13 +369,13 @@ body {
     box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
 }
 
-/* ========== ⭐ VOICE RECORDING BUTTON ========== */
+/* ========== VOICE RECORDING BUTTON ========== */
 #voice-btn.recording {
     color: red;
     animation: pulse 1s infinite;
 }
 
-/* ========== ⭐ VOICE MESSAGE ========== */
+/* ========== VOICE MESSAGE ========== */
 .voice-message {
     display: flex;
     align-items: center;
@@ -368,12 +386,8 @@ body {
 .voice-message audio {
     border-radius: 20px;
     background: #f0f0f0;
-    height: 40px;
-    max-width: 250px;
-}
-
-.voice-message audio::-webkit-media-controls-panel {
-    background: #f0f0f0;
+    height: 36px;
+    max-width: 200px;
 }
 
 .voice-message .duration {
@@ -381,14 +395,14 @@ body {
     color: #999;
 }
 
-/* ========== ⭐ FILE MESSAGE ========== */
+/* ========== FILE MESSAGE ========== */
 .file-message {
     cursor: pointer;
 }
 
 .file-message img {
-    max-width: 200px;
-    max-height: 200px;
+    max-width: 180px;
+    max-height: 180px;
     border-radius: 10px;
     border: 2px solid #e0e0e0;
     transition: all 0.3s ease;
@@ -399,65 +413,63 @@ body {
     transform: scale(1.02);
 }
 
-.file-message .file-card {
+.file-card {
     display: flex;
     align-items: center;
     gap: 12px;
-    padding: 12px 16px;
+    padding: 10px 14px;
     background: #f0f0f0;
-    border-radius: 12px;
+    border-radius: 10px;
     transition: all 0.3s ease;
-    min-width: 150px;
+    min-width: 140px;
 }
 
-.file-message .file-card:hover {
+.file-card:hover {
     background: #e0e0e0;
     transform: translateX(5px);
 }
 
-.file-message .file-icon {
-    font-size: 28px;
-    color: #667eea;
-}
-
-.file-message .file-info {
+.file-card .file-info {
     flex: 1;
 }
 
-.file-message .file-name {
+.file-card .file-name {
     font-weight: 500;
-    font-size: 14px;
+    font-size: 13px;
     word-break: break-word;
 }
 
-.file-message .file-size {
-    font-size: 12px;
+.file-card .file-size {
+    font-size: 11px;
     color: #999;
 }
 
-/* ========== ⭐ RECORDING STATUS ========== */
+/* ========== RECORDING STATUS ========== */
 #voice-recording {
     position: fixed;
     bottom: 120px;
     left: 50%;
     transform: translateX(-50%);
     background: white;
-    padding: 20px 30px;
+    padding: 16px 24px;
     border-radius: 15px;
     box-shadow: 0 10px 40px rgba(0,0,0,0.2);
     z-index: 1000;
+    display: flex;
+    align-items: center;
+    gap: 15px;
 }
 
-#voice-recording .recording-indicator {
-    width: 15px;
-    height: 15px;
+#voice-recording .recording-dot {
+    width: 14px;
+    height: 14px;
     background: red;
     border-radius: 50%;
     animation: pulse 1s infinite;
 }
 
 #voice-recording .recording-text {
-    font-size: 16px;
+    font-size: 15px;
     font-weight: 500;
 }
 
@@ -465,10 +477,11 @@ body {
     background: #dc3545;
     color: white;
     border: none;
-    padding: 8px 20px;
-    border-radius: 10px;
+    padding: 6px 18px;
+    border-radius: 8px;
     cursor: pointer;
     font-weight: 500;
+    font-size: 14px;
     transition: all 0.3s ease;
 }
 
@@ -585,11 +598,11 @@ body.dark-mode .subtitle {
     color: #999;
 }
 
-body.dark-mode .file-message .file-card {
+body.dark-mode .file-card {
     background: #2a2a3e;
 }
 
-body.dark-mode .file-message .file-card:hover {
+body.dark-mode .file-card:hover {
     background: #3a3a4e;
 }
 
@@ -601,14 +614,13 @@ body.dark-mode .voice-message audio::-webkit-media-controls-panel {
     background: #2a2a3e;
 }
 
-body.dark-mode #voice-recording {
-    background: #1e1e2e;
-    color: #e0e0e0;
-}
-
 body.dark-mode .message.system {
     background: #1a1a3e;
     color: #aaa;
+}
+
+body.dark-mode .date-separator {
+    color: #666;
 }
 
 /* ========== SCROLLBAR ========== */
@@ -657,12 +669,12 @@ body.dark-mode ::-webkit-scrollbar-thumb {
     }
     
     .voice-message audio {
-        max-width: 180px;
+        max-width: 160px;
     }
     
     .file-message img {
-        max-width: 150px;
-        max-height: 150px;
+        max-width: 140px;
+        max-height: 140px;
     }
     
     .chat-input {
@@ -677,11 +689,12 @@ body.dark-mode ::-webkit-scrollbar-thumb {
     }
     
     #voice-recording {
-        padding: 15px 20px;
+        padding: 14px 18px;
         bottom: 100px;
+        gap: 10px;
     }
     
     #voice-recording .recording-text {
-        font-size: 14px;
+        font-size: 13px;
     }
 }

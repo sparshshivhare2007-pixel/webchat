@@ -282,27 +282,39 @@ body {
     animation: pulse 1.5s infinite;
 }
 
-/* Chat Input */
+/* ========== ⭐ CHAT INPUT - Updated with Voice & Attachment ========== */
 .chat-input {
     display: flex;
-    gap: 10px;
-    padding: 15px 20px;
+    gap: 8px;
+    padding: 12px 15px;
     background: white;
     border-top: 1px solid #e0e0e0;
+    align-items: center;
 }
 
 .chat-input button {
     background: none;
     border: none;
-    font-size: 22px;
+    font-size: 20px;
     cursor: pointer;
     color: #667eea;
     transition: all 0.3s ease;
-    padding: 0 5px;
+    padding: 8px;
+    border-radius: 50%;
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 
 .chat-input button:hover {
-    transform: scale(1.1);
+    background: #f0f0f0;
+    transform: scale(1.05);
+}
+
+.chat-input button:active {
+    transform: scale(0.95);
 }
 
 .chat-input input {
@@ -339,7 +351,133 @@ body {
     box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
 }
 
-/* Emoji Picker */
+/* ========== ⭐ VOICE RECORDING BUTTON ========== */
+#voice-btn.recording {
+    color: red;
+    animation: pulse 1s infinite;
+}
+
+/* ========== ⭐ VOICE MESSAGE ========== */
+.voice-message {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.voice-message audio {
+    border-radius: 20px;
+    background: #f0f0f0;
+    height: 40px;
+    max-width: 250px;
+}
+
+.voice-message audio::-webkit-media-controls-panel {
+    background: #f0f0f0;
+}
+
+.voice-message .duration {
+    font-size: 12px;
+    color: #999;
+}
+
+/* ========== ⭐ FILE MESSAGE ========== */
+.file-message {
+    cursor: pointer;
+}
+
+.file-message img {
+    max-width: 200px;
+    max-height: 200px;
+    border-radius: 10px;
+    border: 2px solid #e0e0e0;
+    transition: all 0.3s ease;
+}
+
+.file-message img:hover {
+    border-color: #667eea;
+    transform: scale(1.02);
+}
+
+.file-message .file-card {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 16px;
+    background: #f0f0f0;
+    border-radius: 12px;
+    transition: all 0.3s ease;
+    min-width: 150px;
+}
+
+.file-message .file-card:hover {
+    background: #e0e0e0;
+    transform: translateX(5px);
+}
+
+.file-message .file-icon {
+    font-size: 28px;
+    color: #667eea;
+}
+
+.file-message .file-info {
+    flex: 1;
+}
+
+.file-message .file-name {
+    font-weight: 500;
+    font-size: 14px;
+    word-break: break-word;
+}
+
+.file-message .file-size {
+    font-size: 12px;
+    color: #999;
+}
+
+/* ========== ⭐ RECORDING STATUS ========== */
+#voice-recording {
+    position: fixed;
+    bottom: 120px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: white;
+    padding: 20px 30px;
+    border-radius: 15px;
+    box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+    z-index: 1000;
+}
+
+#voice-recording .recording-indicator {
+    width: 15px;
+    height: 15px;
+    background: red;
+    border-radius: 50%;
+    animation: pulse 1s infinite;
+}
+
+#voice-recording .recording-text {
+    font-size: 16px;
+    font-weight: 500;
+}
+
+#voice-recording .stop-btn {
+    background: #dc3545;
+    color: white;
+    border: none;
+    padding: 8px 20px;
+    border-radius: 10px;
+    cursor: pointer;
+    font-weight: 500;
+    transition: all 0.3s ease;
+}
+
+#voice-recording .stop-btn:hover {
+    background: #c82333;
+    transform: scale(1.05);
+}
+
+/* ========== EMOJI PICKER ========== */
 #emoji-picker {
     position: fixed;
     bottom: 100px;
@@ -407,7 +545,8 @@ body.dark-mode {
 
 body.dark-mode .container,
 body.dark-mode .chat-container,
-body.dark-mode #emoji-picker {
+body.dark-mode #emoji-picker,
+body.dark-mode #voice-recording {
     background: #1e1e2e;
     color: #e0e0e0;
 }
@@ -434,12 +573,42 @@ body.dark-mode .chat-input {
     border-color: #3a3a5e;
 }
 
+body.dark-mode .chat-input button:hover {
+    background: #2a2a3e;
+}
+
 body.dark-mode .logo h1 {
     color: #e0e0e0;
 }
 
 body.dark-mode .subtitle {
     color: #999;
+}
+
+body.dark-mode .file-message .file-card {
+    background: #2a2a3e;
+}
+
+body.dark-mode .file-message .file-card:hover {
+    background: #3a3a4e;
+}
+
+body.dark-mode .voice-message audio {
+    background: #2a2a3e;
+}
+
+body.dark-mode .voice-message audio::-webkit-media-controls-panel {
+    background: #2a2a3e;
+}
+
+body.dark-mode #voice-recording {
+    background: #1e1e2e;
+    color: #e0e0e0;
+}
+
+body.dark-mode .message.system {
+    background: #1a1a3e;
+    color: #aaa;
 }
 
 /* ========== SCROLLBAR ========== */
@@ -460,6 +629,14 @@ body.dark-mode .subtitle {
     background: #764ba2;
 }
 
+body.dark-mode ::-webkit-scrollbar-track {
+    background: #1a1a2e;
+}
+
+body.dark-mode ::-webkit-scrollbar-thumb {
+    background: #667eea;
+}
+
 /* ========== RESPONSIVE ========== */
 @media (max-width: 500px) {
     .container {
@@ -477,5 +654,34 @@ body.dark-mode .subtitle {
     
     .message {
         max-width: 90%;
+    }
+    
+    .voice-message audio {
+        max-width: 180px;
+    }
+    
+    .file-message img {
+        max-width: 150px;
+        max-height: 150px;
+    }
+    
+    .chat-input {
+        padding: 10px 12px;
+        gap: 5px;
+    }
+    
+    .chat-input button {
+        width: 35px;
+        height: 35px;
+        font-size: 16px;
+    }
+    
+    #voice-recording {
+        padding: 15px 20px;
+        bottom: 100px;
+    }
+    
+    #voice-recording .recording-text {
+        font-size: 14px;
     }
 }

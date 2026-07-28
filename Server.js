@@ -2,6 +2,8 @@ const express = require('express');
 const http = require('http');
 const socketIo = require('socket.io');
 const path = require('path');
+const multer = require('multer');
+const fs = require('fs');
 
 // ⭐ INDIAN STANDARD TIME SET KAREIN
 process.env.TZ = 'Asia/Kolkata';
@@ -15,7 +17,45 @@ const io = socketIo(server, {
     }
 });
 
+// ⭐ UPLOAD FOLDER CREATE KAREIN
+const uploadDir = path.join(__dirname, 'public/uploads');
+if (!fs.existsSync(uploadDir)) {
+    fs.mkdirSync(uploadDir, { recursive: true });
+}
+
+// ⭐ MULTER SETUP - File Upload
+const storage = multer.diskStorage({
+    destination: (req, file, cb) => {
+        cb(null, uploadDir);
+    },
+    filename: (req, file, cb) => {
+        const uniqueName = Date.now() + '-' + Math.round(Math.random() * 1E9) + '-' + file.originalname;
+        cb(null, uniqueName);
+    }
+});
+
+const fileFilter = (req, file, cb) => {
+    // Allowed file types
+    const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 
+                          'application/pdf', 'application/msword', 
+                          'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+                          'text/plain', 'audio/webm', 'audio/mp3', 'audio/mpeg'];
+    
+    if (allowedTypes.includes(file.mimetype)) {
+        cb(null, true);
+    } else {
+        cb(new Error('Invalid file type'), false);
+    }
+};
+
+const upload = multer({ 
+    storage: storage,
+    fileFilter: fileFilter,
+    limits: { fileSize: 10 * 1024 * 1024 } // 10MB limit
+});
+
 app.use(express.static('public'));
+app.use('/uploads', express.static(uploadDir));
 
 // Store all data
 const rooms = {};
@@ -44,6 +84,25 @@ function getISTTimeShort() {
         hour12: true
     });
 }
+
+// ⭐ FILE UPLOAD ROUTE
+app.post('/upload', upload.single('file'), (req, res) => {
+    if (!req.file) {
+        return res.status(400).json({ error: 'No file uploaded' });
+    }
+    
+    const fileUrl = `/uploads/${req.file.filename}`;
+    const fileType = req.file.mimetype;
+    const fileName = req.file.originalname;
+    const fileSize = req.file.size;
+    
+    res.json({
+        url: fileUrl,
+        type: fileType,
+        name: fileName,
+        size: fileSize
+    });
+});
 
 io.on('connection', (socket) => {
     console.log(`🟢 User Connected: ${socket.id} at ${getISTTime()}`);
@@ -87,7 +146,7 @@ io.on('connection', (socket) => {
         const welcomeMsg = {
             user: '🟢 System',
             text: `${socket.username} joined the chat!`,
-            time: getISTTime(),  // ← Full date + time
+            time: getISTTime(),
             isSystem: true
         };
         io.to(roomName).emit('receive-message', welcomeMsg);
@@ -95,17 +154,59 @@ io.on('connection', (socket) => {
         console.log(`📢 ${socket.username} joined ${roomName} at ${getISTTime()}`);
     });
 
-    // Handle new message
+    // ⭐ Handle Text Message
     socket.on('send-message', (msg) => {
         const room = socket.currentRoom;
         if (room && rooms[room]) {
-            // ⭐ Message with IST time
             const messageData = {
                 user: socket.username,
                 text: msg.text,
-                time: getISTTime(),  // ← Full date + time
+                time: getISTTime(),
                 userId: socket.id,
-                isSystem: false
+                isSystem: false,
+                type: 'text'
+            };
+            
+            rooms[room].messages.push(messageData);
+            io.to(room).emit('receive-message', messageData);
+        }
+    });
+
+    // ⭐ Handle Voice Message
+    socket.on('send-voice', (data) => {
+        const room = socket.currentRoom;
+        if (room && rooms[room] && data.audioUrl) {
+            const messageData = {
+                user: socket.username,
+                text: '🎙️ Voice Note',
+                time: getISTTime(),
+                userId: socket.id,
+                isSystem: false,
+                type: 'voice',
+                audioUrl: data.audioUrl,
+                duration: data.duration || 0
+            };
+            
+            rooms[room].messages.push(messageData);
+            io.to(room).emit('receive-message', messageData);
+        }
+    });
+
+    // ⭐ Handle File Attachment
+    socket.on('send-attachment', (data) => {
+        const room = socket.currentRoom;
+        if (room && rooms[room] && data.fileUrl) {
+            const messageData = {
+                user: socket.username,
+                text: `📎 ${data.fileName}`,
+                time: getISTTime(),
+                userId: socket.id,
+                isSystem: false,
+                type: 'file',
+                fileUrl: data.fileUrl,
+                fileName: data.fileName,
+                fileType: data.fileType,
+                fileSize: data.fileSize
             };
             
             rooms[room].messages.push(messageData);
@@ -141,7 +242,7 @@ io.on('connection', (socket) => {
             const leaveMsg = {
                 user: '🔴 System',
                 text: `${socket.username || 'Someone'} left the chat`,
-                time: getISTTime(),  // ← Full date + time
+                time: getISTTime(),
                 isSystem: true
             };
             io.to(socket.currentRoom).emit('receive-message', leaveMsg);

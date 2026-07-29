@@ -82,4 +82,62 @@
                         <i class="fas fa-phone-slash"></i>
                     </button>
                     <button id="theme-toggle" class="theme-btn" title="Toggle Theme">
-                        <
+                        <i class="fas fa-moon"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Call Status -->
+            <div id="call-status" style="display:none;">
+                <div class="call-info">
+                    <i class="fas fa-phone"></i>
+                    <span>Call in progress...</span>
+                    <span id="call-users-count">0</span> users in call
+                </div>
+            </div>
+
+            <!-- Messages -->
+            <div id="messages-container">
+                <div id="messages"></div>
+                <div id="typing-indicator" style="display:none;">
+                    <span id="typing-user"></span> is typing...
+                </div>
+            </div>
+
+            <!-- Input -->
+            <div class="chat-input">
+                <button id="attach-btn" title="Attach File"><i class="fas fa-paperclip"></i></button>
+                <button id="voice-btn" title="Voice Note"><i class="fas fa-microphone"></i></button>
+                <input type="text" id="message-input" placeholder="Type a message...">
+                <button id="send-btn"><i class="fas fa-paper-plane"></i></button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Hidden File Input -->
+    <input type="file" id="file-input" style="display:none;" accept="image/*,.pdf,.doc,.docx,.txt,.mp3,.wav">
+
+    <!-- Voice Recording Status -->
+    <div id="voice-recording" style="display:none;">
+        <div class="recording-dot"></div>
+        <span class="recording-text">Recording... <span id="recording-timer">0s</span></span>
+        <button class="stop-btn" id="stop-recording-btn">Stop</button>
+    </div>
+
+    <!-- Emoji Picker -->
+    <div id="emoji-picker" style="display:none;">
+        <div class="emoji-grid">
+            <span>😊</span><span>😂</span><span>🤣</span><span>❤️</span>
+            <span>😍</span><span>🤩</span><span>😎</span><span>🥳</span>
+            <span>🤔</span><span>😭</span><span>🥺</span><span>😡</span>
+            <span>👍</span><span>👏</span><span>🙌</span><span>💪</span>
+            <span>🎉</span><span>🎊</span><span>✨</span><span>🔥</span>
+            <span>👋</span><span>🤝</span><span>💯</span><span>✅</span>
+        </div>
+    </div>
+
+    <script src="data/india-data.js"></script>
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="dashboard.js"></script>
+</body>
+</html>

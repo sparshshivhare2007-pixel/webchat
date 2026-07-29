@@ -14,5 +14,16 @@
   },
   "devDependencies": {
     "nodemon": "^2.0.22"
-  }
+  },
+  "keywords": ["chat", "regional", "socket.io", "voice", "video"],
+  "author": "Sparsh Shivhare",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/sparshshivhare2007-pixel/webchat.git"
+  },
+  "bugs": {
+    "url": "https://github.com/sparshshivhare2007-pixel/webchat/issues"
+  },
+  "homepage": "https://github.com/sparshshivhare2007-pixel/webchat#readme"
 }

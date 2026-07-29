@@ -5,7 +5,6 @@ const path = require('path');
 const multer = require('multer');
 const fs = require('fs');
 
-// ⭐ INDIAN STANDARD TIME SET KAREIN
 process.env.TZ = 'Asia/Kolkata';
 
 const app = express();
@@ -17,16 +16,21 @@ const io = socketIo(server, {
     }
 });
 
-// ⭐ UPLOAD FOLDER CREATE KAREIN
+// ========== Upload Folders ==========
 const uploadDir = path.join(__dirname, 'public/uploads');
-if (!fs.existsSync(uploadDir)) {
-    fs.mkdirSync(uploadDir, { recursive: true });
-}
+const profileDir = path.join(__dirname, 'public/uploads/profiles');
 
-// ⭐ MULTER SETUP - File Upload
+if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
+if (!fs.existsSync(profileDir)) fs.mkdirSync(profileDir, { recursive: true });
+
+// ========== Multer Setup ==========
 const storage = multer.diskStorage({
     destination: (req, file, cb) => {
-        cb(null, uploadDir);
+        if (req.path === '/upload-profile') {
+            cb(null, profileDir);
+        } else {
+            cb(null, uploadDir);
+        }
     },
     filename: (req, file, cb) => {
         const uniqueName = Date.now() + '-' + Math.round(Math.random() * 1E9) + '-' + file.originalname;
@@ -35,7 +39,6 @@ const storage = multer.diskStorage({
 });
 
 const fileFilter = (req, file, cb) => {
-    // Allowed file types
     const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 
                           'application/pdf', 'application/msword', 
                           'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
@@ -51,17 +54,17 @@ const fileFilter = (req, file, cb) => {
 const upload = multer({ 
     storage: storage,
     fileFilter: fileFilter,
-    limits: { fileSize: 10 * 1024 * 1024 } // 10MB limit
+    limits: { fileSize: 10 * 1024 * 1024 }
 });
 
 app.use(express.static('public'));
 app.use('/uploads', express.static(uploadDir));
 
-// Store all data
+// ========== Data Store ==========
 const rooms = {};
-const onlineUsers = {};
+const users = {};
 
-// ⭐ HELPER FUNCTION - IST TIME (Full Date + Time)
+// ========== Helper Functions ==========
 function getISTTime() {
     return new Date().toLocaleString('en-IN', {
         timeZone: 'Asia/Kolkata',
@@ -75,146 +78,242 @@ function getISTTime() {
     });
 }
 
-// ⭐ HELPER FUNCTION - Sirf Time (Short)
-function getISTTimeShort() {
-    return new Date().toLocaleTimeString('en-IN', {
-        timeZone: 'Asia/Kolkata',
-        hour: '2-digit',
-        minute: '2-digit',
-        hour12: true
-    });
+function generateRoomId() {
+    return 'room_' + Date.now() + '_' + Math.random().toString(36).substr(2, 6);
 }
 
-// ⭐ FILE UPLOAD ROUTE
+// ========== Routes ==========
+app.get('/api/rooms', (req, res) => {
+    const roomList = Object.keys(rooms).map(roomId => {
+        const room = rooms[roomId];
+        return {
+            id: roomId,
+            name: room.name,
+            state: room.state,
+            district: room.district,
+            users: room.users ? room.users.length : 0,
+            host: room.host,
+            created: room.created
+        };
+    });
+    res.json(roomList);
+});
+
+app.get('/api/room/:roomId', (req, res) => {
+    const room = rooms[req.params.roomId];
+    if (!room) {
+        return res.status(404).json({ error: 'Room not found' });
+    }
+    res.json({
+        id: req.params.roomId,
+        name: room.name,
+        state: room.state,
+        district: room.district,
+        host: room.host,
+        users: room.users || [],
+        messages: room.messages || []
+    });
+});
+
+// Profile Upload
+app.post('/upload-profile', upload.single('profile'), (req, res) => {
+    if (!req.file) {
+        return res.status(400).json({ error: 'No file uploaded' });
+    }
+    res.json({
+        url: `/uploads/profiles/${req.file.filename}`
+    });
+});
+
+// File Upload
 app.post('/upload', upload.single('file'), (req, res) => {
     if (!req.file) {
         return res.status(400).json({ error: 'No file uploaded' });
     }
-    
-    const fileUrl = `/uploads/${req.file.filename}`;
-    const fileType = req.file.mimetype;
-    const fileName = req.file.originalname;
-    const fileSize = req.file.size;
-    
     res.json({
-        url: fileUrl,
-        type: fileType,
-        name: fileName,
-        size: fileSize
+        url: `/uploads/${req.file.filename}`,
+        type: req.file.mimetype,
+        name: req.file.originalname,
+        size: req.file.size
     });
 });
 
+// ========== Socket.IO ==========
 io.on('connection', (socket) => {
-    console.log(`🟢 User Connected: ${socket.id} at ${getISTTime()}`);
+    console.log(`🟢 User Connected: ${socket.id}`);
 
-    // Join Room
-    socket.on('join-room', (data) => {
-        const { state, region, language, username } = data;
-        const roomName = `${state}-${region}-${language}`;
+    // ========== Login ==========
+    socket.on('login', (data) => {
+        const { username, profilePic } = data;
+        socket.username = username;
+        socket.profilePic = profilePic || '';
+        users[socket.id] = { username, profilePic: socket.profilePic };
+        console.log(`👤 ${username} logged in`);
+        socket.emit('login-success', { 
+            username, 
+            profilePic: socket.profilePic,
+            userId: socket.id 
+        });
+    });
+
+    // ========== Create Room ==========
+    socket.on('create-room', (data) => {
+        const { roomName, state, district, username, profilePic } = data;
+        const roomId = generateRoomId();
         
-        // Leave previous room
+        rooms[roomId] = {
+            id: roomId,
+            name: roomName,
+            state: state,
+            district: district,
+            host: username,
+            hostId: socket.id,
+            created: getISTTime(),
+            users: [{
+                id: socket.id,
+                username: username,
+                profilePic: profilePic || '',
+                isHost: true
+            }],
+            messages: [],
+            callActive: false,
+            callUsers: []
+        };
+
+        socket.join(roomId);
+        socket.currentRoom = roomId;
+        socket.isHost = true;
+
+        io.emit('room-created', {
+            id: roomId,
+            name: roomName,
+            state: state,
+            district: district,
+            host: username,
+            users: 1
+        });
+
+        socket.emit('room-joined', {
+            roomId: roomId,
+            roomName: roomName,
+            isHost: true,
+            users: rooms[roomId].users
+        });
+
+        console.log(`📢 Room created: ${roomName} by ${username}`);
+    });
+
+    // ========== Join Room ==========
+    socket.on('join-room', (data) => {
+        const { roomId, username, profilePic } = data;
+        const room = rooms[roomId];
+        
+        if (!room) {
+            socket.emit('error', 'Room not found');
+            return;
+        }
+
         if (socket.currentRoom) {
             socket.leave(socket.currentRoom);
         }
-        
-        socket.join(roomName);
-        socket.currentRoom = roomName;
-        socket.username = username || 'Anonymous';
-        socket.userData = { state, region, language, username: socket.username };
-        
-        // Initialize room if not exists
-        if (!rooms[roomName]) {
-            rooms[roomName] = {
-                messages: [],
-                users: []
-            };
-        }
-        
-        // Add user to room
-        if (!rooms[roomName].users.includes(socket.id)) {
-            rooms[roomName].users.push(socket.id);
-        }
-        
-        // Send previous messages (last 50)
-        const lastMessages = rooms[roomName].messages.slice(-50);
-        socket.emit('previous-messages', lastMessages);
-        
-        // Send online users count
-        io.to(roomName).emit('online-count', rooms[roomName].users.length);
-        
-        // ⭐ Welcome message with IST time
+
+        socket.join(roomId);
+        socket.currentRoom = roomId;
+        socket.isHost = false;
+
+        room.users.push({
+            id: socket.id,
+            username: username,
+            profilePic: profilePic || '',
+            isHost: false
+        });
+
+        socket.emit('previous-messages', room.messages.slice(-50));
+        io.to(roomId).emit('room-users', room.users);
+        io.to(roomId).emit('online-count', room.users.length);
+
         const welcomeMsg = {
             user: '🟢 System',
-            text: `${socket.username} joined the chat!`,
+            text: `${username} joined the chat!`,
             time: getISTTime(),
             isSystem: true
         };
-        io.to(roomName).emit('receive-message', welcomeMsg);
-        
-        console.log(`📢 ${socket.username} joined ${roomName} at ${getISTTime()}`);
+        io.to(roomId).emit('receive-message', welcomeMsg);
+
+        socket.emit('room-joined', {
+            roomId: roomId,
+            roomName: room.name,
+            isHost: false,
+            users: room.users
+        });
+
+        console.log(`👤 ${username} joined ${room.name}`);
     });
 
-    // ⭐ Handle Text Message
-    socket.on('send-message', (msg) => {
-        const room = socket.currentRoom;
-        if (room && rooms[room]) {
-            const messageData = {
-                user: socket.username,
-                text: msg.text,
-                time: getISTTime(),
-                userId: socket.id,
-                isSystem: false,
-                type: 'text'
-            };
-            
-            rooms[room].messages.push(messageData);
-            io.to(room).emit('receive-message', messageData);
-        }
+    // ========== Send Message ==========
+    socket.on('send-message', (data) => {
+        const room = rooms[socket.currentRoom];
+        if (!room) return;
+
+        const messageData = {
+            user: socket.username,
+            text: data.text,
+            time: getISTTime(),
+            userId: socket.id,
+            isSystem: false,
+            type: 'text',
+            profilePic: socket.profilePic || ''
+        };
+
+        room.messages.push(messageData);
+        io.to(socket.currentRoom).emit('receive-message', messageData);
     });
 
-    // ⭐ Handle Voice Message
+    // ========== Send Voice ==========
     socket.on('send-voice', (data) => {
-        const room = socket.currentRoom;
-        if (room && rooms[room] && data.audioUrl) {
-            const messageData = {
-                user: socket.username,
-                text: '🎙️ Voice Note',
-                time: getISTTime(),
-                userId: socket.id,
-                isSystem: false,
-                type: 'voice',
-                audioUrl: data.audioUrl,
-                duration: data.duration || 0
-            };
-            
-            rooms[room].messages.push(messageData);
-            io.to(room).emit('receive-message', messageData);
-        }
+        const room = rooms[socket.currentRoom];
+        if (!room) return;
+
+        const messageData = {
+            user: socket.username,
+            text: '🎙️ Voice Note',
+            time: getISTTime(),
+            userId: socket.id,
+            isSystem: false,
+            type: 'voice',
+            audioUrl: data.audioUrl,
+            duration: data.duration,
+            profilePic: socket.profilePic || ''
+        };
+
+        room.messages.push(messageData);
+        io.to(socket.currentRoom).emit('receive-message', messageData);
     });
 
-    // ⭐ Handle File Attachment
+    // ========== Send Attachment ==========
     socket.on('send-attachment', (data) => {
-        const room = socket.currentRoom;
-        if (room && rooms[room] && data.fileUrl) {
-            const messageData = {
-                user: socket.username,
-                text: `📎 ${data.fileName}`,
-                time: getISTTime(),
-                userId: socket.id,
-                isSystem: false,
-                type: 'file',
-                fileUrl: data.fileUrl,
-                fileName: data.fileName,
-                fileType: data.fileType,
-                fileSize: data.fileSize
-            };
-            
-            rooms[room].messages.push(messageData);
-            io.to(room).emit('receive-message', messageData);
-        }
+        const room = rooms[socket.currentRoom];
+        if (!room) return;
+
+        const messageData = {
+            user: socket.username,
+            text: `📎 ${data.fileName}`,
+            time: getISTTime(),
+            userId: socket.id,
+            isSystem: false,
+            type: 'file',
+            fileUrl: data.fileUrl,
+            fileName: data.fileName,
+            fileType: data.fileType,
+            fileSize: data.fileSize,
+            profilePic: socket.profilePic || ''
+        };
+
+        room.messages.push(messageData);
+        io.to(socket.currentRoom).emit('receive-message', messageData);
     });
 
-    // Typing indicator
+    // ========== Typing ==========
     socket.on('typing', (isTyping) => {
         const room = socket.currentRoom;
         if (room) {
@@ -225,20 +324,66 @@ io.on('connection', (socket) => {
         }
     });
 
-    // Handle disconnect
+    // ========== Call Controls ==========
+    socket.on('start-call', () => {
+        const room = rooms[socket.currentRoom];
+        if (!room) return;
+
+        if (!socket.isHost) {
+            socket.emit('error', 'Only host can start a call');
+            return;
+        }
+
+        room.callActive = true;
+        room.callUsers = room.users.map(u => u.id);
+        io.to(socket.currentRoom).emit('call-started', {
+            host: socket.username,
+            users: room.users
+        });
+    });
+
+    socket.on('stop-call', () => {
+        const room = rooms[socket.currentRoom];
+        if (!room) return;
+
+        if (!socket.isHost) {
+            socket.emit('error', 'Only host can stop the call');
+            return;
+        }
+
+        room.callActive = false;
+        room.callUsers = [];
+        io.to(socket.currentRoom).emit('call-stopped');
+    });
+
+    socket.on('join-call', () => {
+        const room = rooms[socket.currentRoom];
+        if (!room || !room.callActive) return;
+
+        if (!room.callUsers.includes(socket.id)) {
+            room.callUsers.push(socket.id);
+        }
+        io.to(socket.currentRoom).emit('call-users', room.callUsers);
+    });
+
+    socket.on('leave-call', () => {
+        const room = rooms[socket.currentRoom];
+        if (!room) return;
+
+        room.callUsers = room.callUsers.filter(id => id !== socket.id);
+        io.to(socket.currentRoom).emit('call-users', room.callUsers);
+    });
+
+    // ========== Disconnect ==========
     socket.on('disconnect', () => {
-        console.log(`🔴 User Disconnected: ${socket.id} at ${getISTTime()}`);
+        console.log(`🔴 User Disconnected: ${socket.id}`);
         
-        if (socket.currentRoom && rooms[socket.currentRoom]) {
-            // Remove user from room
-            rooms[socket.currentRoom].users = rooms[socket.currentRoom].users.filter(
-                id => id !== socket.id
-            );
-            
-            // Update online count
-            io.to(socket.currentRoom).emit('online-count', rooms[socket.currentRoom].users.length);
-            
-            // ⭐ Leave message with IST time
+        const room = rooms[socket.currentRoom];
+        if (room) {
+            room.users = room.users.filter(u => u.id !== socket.id);
+            io.to(socket.currentRoom).emit('room-users', room.users);
+            io.to(socket.currentRoom).emit('online-count', room.users.length);
+
             const leaveMsg = {
                 user: '🔴 System',
                 text: `${socket.username || 'Someone'} left the chat`,
@@ -246,7 +391,16 @@ io.on('connection', (socket) => {
                 isSystem: true
             };
             io.to(socket.currentRoom).emit('receive-message', leaveMsg);
+
+            if (socket.isHost && room.users.length > 0) {
+                room.users[0].isHost = true;
+                room.host = room.users[0].username;
+                room.hostId = room.users[0].id;
+                io.to(socket.currentRoom).emit('new-host', room.users[0]);
+            }
         }
+
+        delete users[socket.id];
     });
 });
 

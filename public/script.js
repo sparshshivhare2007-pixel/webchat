@@ -4,6 +4,7 @@ const socket = io();
 const selectionScreen = document.getElementById('selection-screen');
 const chatScreen = document.getElementById('chat-screen');
 const joinBtn = document.getElementById('join-btn');
+const showRoomsBtn = document.getElementById('show-rooms-btn');
 const backBtn = document.getElementById('back-btn');
 const sendBtn = document.getElementById('send-btn');
 const messageInput = document.getElementById('message-input');
@@ -16,20 +17,20 @@ const themeToggle = document.getElementById('theme-toggle');
 const emojiToggle = document.getElementById('emoji-toggle');
 const emojiPicker = document.getElementById('emoji-picker');
 const emojiBtn = document.getElementById('emoji-btn');
-
-// ========== DOM Elements for Voice & Attachment ==========
 const attachBtn = document.getElementById('attach-btn');
 const voiceBtn = document.getElementById('voice-btn');
 const fileInput = document.getElementById('file-input');
 const voiceRecording = document.getElementById('voice-recording');
 const recordingTimer = document.getElementById('recording-timer');
 const stopRecordingBtn = document.getElementById('stop-recording-btn');
+const roomsContainer = document.getElementById('rooms-container');
+const roomsList = document.getElementById('rooms-list');
 
 let currentRoom = '';
 let username = '';
 let typingTimeout = null;
 let isDarkMode = false;
-let lastDate = ''; // ⭐ Track last message date
+let lastDate = '';
 
 // ========== Voice Recording Variables ==========
 let mediaRecorder = null;
@@ -38,45 +39,99 @@ let recordingStartTime = null;
 let recordingInterval = null;
 let isRecording = false;
 
-// ========== Auto-generate username ==========
-const randomNum = Math.floor(Math.random() * 1000);
-document.getElementById('username').value = `User_${randomNum}`;
-
-// ========== Join Chat ==========
-joinBtn.addEventListener('click', joinChat);
-document.querySelectorAll('#state, #region, #language').forEach(el => {
-    el.addEventListener('change', () => {
-        if (document.getElementById('state').value && 
-            document.getElementById('region').value && 
-            document.getElementById('language').value) {
-            joinBtn.style.opacity = '1';
+// ========== Load Rooms ==========
+async function loadRooms() {
+    try {
+        const response = await fetch('/api/rooms');
+        const rooms = await response.json();
+        
+        if (rooms.length === 0) {
+            roomsContainer.innerHTML = `<p class="no-rooms">No active rooms. Create one!</p>`;
+            return;
         }
-    });
+        
+        roomsContainer.innerHTML = rooms.map(room => `
+            <div class="room-item" data-room="${room.name}">
+                <div class="room-name">
+                    <i class="fas fa-hashtag"></i>
+                    ${room.name}
+                </div>
+                <div class="room-meta">
+                    <span class="room-users">
+                        <i class="fas fa-user"></i> ${room.users}
+                    </span>
+                    <button class="join-room-btn" onclick="joinExistingRoom('${room.name}')">
+                        Join
+                    </button>
+                </div>
+            </div>
+        `).join('');
+    } catch (error) {
+        console.error('Error loading rooms:', error);
+        roomsContainer.innerHTML = `<p class="no-rooms">Failed to load rooms</p>`;
+    }
+}
+
+// ========== Show/Hide Rooms ==========
+let roomsVisible = false;
+
+showRoomsBtn.addEventListener('click', () => {
+    roomsVisible = !roomsVisible;
+    roomsList.style.display = roomsVisible ? 'block' : 'none';
+    showRoomsBtn.innerHTML = roomsVisible ? 
+        '<i class="fas fa-times"></i> Close Rooms' : 
+        '<i class="fas fa-door-open"></i> Enter Room';
+    
+    if (roomsVisible) {
+        loadRooms();
+    }
+});
+
+// ========== Join Existing Room ==========
+function joinExistingRoom(room) {
+    const name = document.getElementById('username').value.trim();
+    if (!name) {
+        alert('Please enter your name first!');
+        document.getElementById('username').focus();
+        return;
+    }
+    
+    username = name;
+    currentRoom = room;
+    roomName.textContent = `📍 ${room}`;
+    
+    socket.emit('join-room', { roomName: room, username: name });
+    
+    selectionScreen.style.display = 'none';
+    chatScreen.style.display = 'flex';
+    messageInput.focus();
+    roomsList.style.display = 'none';
+    showRoomsBtn.innerHTML = '<i class="fas fa-door-open"></i> Enter Room';
+    roomsVisible = false;
+}
+
+// ========== Join Chat (Create New Room) ==========
+joinBtn.addEventListener('click', joinChat);
+document.getElementById('username').addEventListener('keypress', (e) => {
+    if (e.key === 'Enter') joinChat();
 });
 
 function joinChat() {
-    const state = document.getElementById('state').value;
-    const region = document.getElementById('region').value;
-    const language = document.getElementById('language').value;
-    username = document.getElementById('username').value.trim() || 'Anonymous';
-
-    if (!state || !region || !language) {
-        shakeElement(joinBtn);
+    const name = document.getElementById('username').value.trim();
+    
+    if (!name) {
+        alert('Please enter your name!');
+        document.getElementById('username').focus();
         return;
     }
-
-    currentRoom = `${state}-${region}-${language}`;
     
-    const stateNames = {
-        'uttar-pradesh': 'UP', 'maharashtra': 'MH', 'delhi': 'DL',
-        'bihar': 'BR', 'rajasthan': 'RJ', 'tamil-nadu': 'TN',
-        'karnataka': 'KA', 'kerala': 'KL', 'gujarat': 'GJ',
-        'andhra-pradesh': 'AP', 'madhya-pradesh': 'MP', 'west-bengal': 'WB'
-    };
-    roomName.textContent = `📍 ${stateNames[state] || state} | ${region.toUpperCase()} | ${language.toUpperCase()}`;
-
-    socket.emit('join-room', { state, region, language, username });
-
+    username = name;
+    const room = `${name}'s Room`;
+    currentRoom = room;
+    roomName.textContent = `📍 ${room}`;
+    
+    socket.emit('join-room', { roomName: room, username: name });
+    
     selectionScreen.style.display = 'none';
     chatScreen.style.display = 'flex';
     messageInput.focus();
@@ -91,7 +146,7 @@ function leaveChat() {
         selectionScreen.style.display = 'flex';
         messagesDiv.innerHTML = '';
         document.getElementById('online-count').textContent = '0';
-        lastDate = ''; // ⭐ Reset date
+        lastDate = '';
     }
 }
 
@@ -104,9 +159,8 @@ messageInput.addEventListener('keypress', (e) => {
 function sendMessage() {
     const text = messageInput.value.trim();
     if (!text) return;
-
-    const msgData = { text: text };
-    socket.emit('send-message', msgData);
+    
+    socket.emit('send-message', { text: text });
     messageInput.value = '';
     messageInput.focus();
     emojiPicker.style.display = 'none';
@@ -125,22 +179,14 @@ messageInput.addEventListener('input', () => {
     }
 });
 
-// ========== Receive Messages ==========
-socket.on('receive-message', (msg) => {
-    displayMessage(msg);
-});
-
-// ========== Previous Messages ==========
+// ========== Socket Events ==========
+socket.on('receive-message', displayMessage);
 socket.on('previous-messages', (msgs) => {
     msgs.forEach(msg => displayMessage(msg));
 });
-
-// ========== Online Count ==========
 socket.on('online-count', (count) => {
     onlineCount.textContent = count;
 });
-
-// ========== Typing Indicator (Other Users) ==========
 socket.on('user-typing', (data) => {
     if (data.isTyping) {
         typingUser.textContent = data.username;
@@ -149,25 +195,25 @@ socket.on('user-typing', (data) => {
         typingIndicator.style.display = 'none';
     }
 });
+socket.on('error', (msg) => {
+    alert(msg);
+});
 
-// ========== ⭐ DISPLAY MESSAGE - CLEAN VERSION ==========
+// ========== Display Message ==========
 function displayMessage(msg) {
-    // ⭐ Extract date from time
     let msgDate = '';
     let msgTime = '';
     
     if (msg.time) {
-        // Format: "28 Jul, 2026, 08:30:15 PM"
         const parts = msg.time.split(',');
         if (parts.length >= 2) {
-            msgDate = parts[0].trim(); // "28 Jul, 2026"
-            msgTime = parts.slice(1).join(',').trim(); // "08:30:15 PM"
+            msgDate = parts[0].trim();
+            msgTime = parts.slice(1).join(',').trim();
         } else {
             msgTime = msg.time;
         }
     }
     
-    // ⭐ Add date separator if new day (only for non-system messages)
     if (msgDate && msgDate !== lastDate && !msg.isSystem) {
         const dateDiv = document.createElement('div');
         dateDiv.className = 'date-separator';
@@ -200,7 +246,7 @@ function displayMessage(msg) {
     messagesDiv.parentElement.scrollTop = messagesDiv.parentElement.scrollHeight;
 }
 
-// ========== ⭐ Get Message Content (Text, Voice, File) ==========
+// ========== Get Message Content ==========
 function getMessageContent(msg) {
     if (msg.type === 'voice') {
         return `
@@ -232,7 +278,7 @@ function getMessageContent(msg) {
     }
 }
 
-// ========== File Icon Helper ==========
+// ========== File Helpers ==========
 function getFileIcon(fileType) {
     if (!fileType) return 'fa-file';
     if (fileType.startsWith('image/')) return 'fa-image';
@@ -244,7 +290,6 @@ function getFileIcon(fileType) {
     return 'fa-file';
 }
 
-// ========== File Size Formatter ==========
 function formatFileSize(bytes) {
     if (bytes < 1024) return bytes + ' B';
     if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
@@ -327,7 +372,7 @@ voiceBtn.addEventListener('click', async () => {
         isRecording = true;
         voiceBtn.innerHTML = '<i class="fas fa-stop-circle" style="color:red;"></i>';
         voiceBtn.classList.add('recording');
-        voiceRecording.style.display = 'block';
+        voiceRecording.style.display = 'flex';
         
         let seconds = 0;
         recordingTimer.textContent = '0s';
@@ -360,11 +405,11 @@ function stopRecording() {
 
 // ========== Emoji Picker ==========
 emojiBtn.addEventListener('click', () => {
-    emojiPicker.style.display = emojiPicker.style.display === 'none' ? 'block' : 'none';
+    emojiPicker.style.display = emojiPicker.style.display === 'none' ? 'flex' : 'none';
 });
 
 emojiToggle.addEventListener('click', () => {
-    emojiPicker.style.display = emojiPicker.style.display === 'none' ? 'block' : 'none';
+    emojiPicker.style.display = emojiPicker.style.display === 'none' ? 'flex' : 'none';
 });
 
 document.querySelectorAll('.emoji-grid span').forEach(emoji => {
@@ -405,4 +450,6 @@ document.addEventListener('click', (e) => {
     }
 });
 
+// ========== Initial Load ==========
+loadRooms();
 console.log('🚀 Regional Chat App Loaded Successfully!');

@@ -8,8 +8,7 @@
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
-    <!-- ========== SELECTION SCREEN ========== -->
-    <div id="selection-screen" class="screen">
+    <div id="login-screen" class="screen">
         <div class="container glass">
             <div class="logo">
                 <div class="logo-icon">
@@ -18,95 +17,70 @@
                 <h1>Regional<span>Chat</span></h1>
                 <p class="subtitle">Connect with people from your region</p>
             </div>
-            
-            <div class="selection-box">
-                <!-- ⭐ Name Input -->
+
+            <div class="login-box">
+                <!-- Profile Picture -->
+                <div class="profile-upload">
+                    <div class="profile-circle" id="profilePreview">
+                        <i class="fas fa-user"></i>
+                    </div>
+                    <label for="profileInput" class="upload-label">
+                        <i class="fas fa-camera"></i>
+                    </label>
+                    <input type="file" id="profileInput" accept="image/*" style="display:none;">
+                </div>
+
+                <!-- Username -->
                 <div class="input-group">
                     <i class="fas fa-user"></i>
-                    <input type="text" id="username" placeholder="Enter your name" class="input-field" value="sparsh_shivhare">
+                    <input type="text" id="login-username" placeholder="Enter your name" class="input-field" value="sparsh_shivhare">
                 </div>
 
-                <!-- ⭐ Join Button -->
-                <button id="join-btn" class="btn-primary">
-                    <i class="fas fa-rocket"></i> Join Chat
+                <button id="login-btn" class="btn-primary">
+                    <i class="fas fa-sign-in-alt"></i> Get Started
                 </button>
+            </div>
 
-                <!-- ⭐ OR Divider -->
-                <div class="divider">
-                    <span>or</span>
+            <!-- Footer -->
+            <div class="footer">
+                <div class="footer-links">
+                    <a href="#" id="about-link"><i class="fas fa-info-circle"></i> About</a>
+                    <a href="#" id="contact-link"><i class="fas fa-envelope"></i> Contact</a>
                 </div>
-
-                <!-- ⭐ Enter Room Button -->
-                <button id="show-rooms-btn" class="btn-secondary">
-                    <i class="fas fa-door-open"></i> Enter Room
-                </button>
-
-                <!-- ⭐ Rooms List (Hidden by default) -->
-                <div id="rooms-list" style="display:none;">
-                    <h4><i class="fas fa-list"></i> Active Rooms</h4>
-                    <div id="rooms-container">
-                        <p class="loading-text">Loading rooms...</p>
-                    </div>
-                </div>
+                <p class="footer-text">© 2026 RegionalChat • Made with ❤️</p>
             </div>
         </div>
     </div>
 
-    <!-- ========== CHAT SCREEN ========== -->
-    <div id="chat-screen" class="screen" style="display:none;">
-        <div class="chat-container glass">
-            <!-- Header -->
-            <div class="chat-header">
-                <div class="header-left">
-                    <i class="fas fa-arrow-left" id="back-btn"></i>
-                    <div class="room-info">
-                        <h3 id="room-name">Chat Room</h3>
-                        <p id="online-count"><i class="fas fa-circle online-dot"></i> <span id="count">0</span> online</p>
-                    </div>
-                </div>
-                <div class="header-right">
-                    <button id="theme-toggle"><i class="fas fa-moon"></i></button>
-                    <button id="emoji-toggle"><i class="fas fa-smile"></i></button>
-                </div>
-            </div>
-
-            <!-- Messages -->
-            <div id="messages-container">
-                <div id="messages"></div>
-                <div id="typing-indicator" style="display:none;">
-                    <span id="typing-user"></span> is typing...
-                </div>
-            </div>
-
-            <!-- Input -->
-            <div class="chat-input">
-                <button id="attach-btn" title="Attach File"><i class="fas fa-paperclip"></i></button>
-                <button id="voice-btn" title="Voice Note"><i class="fas fa-microphone"></i></button>
-                <input type="text" id="message-input" placeholder="Type a message...">
-                <button id="send-btn"><i class="fas fa-paper-plane"></i></button>
-            </div>
+    <!-- About Modal -->
+    <div id="about-modal" class="modal" style="display:none;">
+        <div class="modal-content glass">
+            <span class="close-btn">&times;</span>
+            <h2><i class="fas fa-info-circle"></i> About RegionalChat</h2>
+            <p>RegionalChat is a platform to connect people from the same region. Chat, share files, and make voice/video calls with people in your area.</p>
+            <p><strong>Features:</strong></p>
+            <ul>
+                <li>📍 Region-based chat rooms</li>
+                <li>🎙️ Voice & Video calls</li>
+                <li>📎 File sharing</li>
+                <li>👥 Group chats</li>
+                <li>🌙 Dark mode</li>
+            </ul>
+            <p><strong>Author:</strong> Sparsh Shivhare</p>
+            <p><strong>Version:</strong> 2.0.0</p>
         </div>
     </div>
 
-    <!-- Hidden File Input -->
-    <input type="file" id="file-input" style="display:none;" accept="image/*,.pdf,.doc,.docx,.txt,.mp3,.wav">
-
-    <!-- Voice Recording Status -->
-    <div id="voice-recording" style="display:none;">
-        <div class="recording-dot"></div>
-        <span class="recording-text">Recording... <span id="recording-timer">0s</span></span>
-        <button class="stop-btn" id="stop-recording-btn">Stop</button>
-    </div>
-
-    <!-- Emoji Picker -->
-    <div id="emoji-picker" style="display:none;">
-        <div class="emoji-grid">
-            <span>😊</span><span>😂</span><span>🤣</span><span>❤️</span>
-            <span>😍</span><span>🤩</span><span>😎</span><span>🥳</span>
-            <span>🤔</span><span>😭</span><span>🥺</span><span>😡</span>
-            <span>👍</span><span>👏</span><span>🙌</span><span>💪</span>
-            <span>🎉</span><span>🎊</span><span>✨</span><span>🔥</span>
-            <span>👋</span><span>🤝</span><span>💯</span><span>✅</span>
+    <!-- Contact Modal -->
+    <div id="contact-modal" class="modal" style="display:none;">
+        <div class="modal-content glass">
+            <span class="close-btn">&times;</span>
+            <h2><i class="fas fa-envelope"></i> Contact Us</h2>
+            <p><i class="fas fa-user"></i> <strong>Author:</strong> Sparsh Shivhare</p>
+            <p><i class="fas fa-envelope"></i> <strong>Email:</strong> sparsh@example.com</p>
+            <p><i class="fas fa-github"></i> <strong>GitHub:</strong> github.com/sparshshivhare</p>
+            <p><i class="fab fa-linkedin"></i> <strong>LinkedIn:</strong> linkedin.com/in/sparshshivhare</p>
+            <p><i class="fas fa-phone"></i> <strong>Phone:</strong> +91-XXXXXXXXXX</p>
         </div>
     </div>
 

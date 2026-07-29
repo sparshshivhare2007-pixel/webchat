@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🌍 RegionalChat - Dashboard</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="dashboard.css">
+</head>
+<body>
+    <div id="dashboard">
+        <!-- ========== SIDEBAR ========== -->
+        <div class="sidebar glass">
+            <div class="sidebar-header">
+                <div class="profile-section">
+                    <div class="profile-avatar" id="dashboard-avatar">
+                        <img id="profile-img" src="" alt="Profile">
+                        <i class="fas fa-user" id="default-avatar"></i>
+                    </div>
+                    <div class="profile-info">
+                        <h3 id="dashboard-username">User</h3>
+                        <p id="dashboard-status">🟢 Online</p>
+                    </div>
+                    <button class="edit-profile-btn" id="edit-profile-btn">
+                        <i class="fas fa-camera"></i>
+                    </button>
+                    <input type="file" id="profile-upload" accept="image/*" style="display:none;">
+                </div>
+                <div class="sidebar-menu">
+                    <button class="menu-btn active" id="rooms-tab">
+                        <i class="fas fa-comments"></i> Rooms
+                    </button>
+                    <button class="menu-btn" id="create-tab">
+                        <i class="fas fa-plus-circle"></i> Create
+                    </button>
+                    <button class="menu-btn" id="logout-btn">
+                        <i class="fas fa-sign-out-alt"></i> Logout
+                    </button>
+                </div>
+            </div>
+
+            <div class="sidebar-content">
+                <!-- Rooms List -->
+                <div id="rooms-list-container">
+                    <h4><i class="fas fa-list"></i> Active Rooms</h4>
+                    <div id="rooms-list">
+                        <p class="loading-text">Loading rooms...</p>
+                    </div>
+                </div>
+
+                <!-- Create Room Form -->
+                <div id="create-room-container" style="display:none;">
+                    <h4><i class="fas fa-plus-circle"></i> Create Room</h4>
+                    <div class="create-form">
+                        <input type="text" id="room-name" placeholder="Room Name" class="input-field">
+                        <select id="room-state" class="input-field">
+                            <option value="">Select State</option>
+                        </select>
+                        <select id="room-district" class="input-field">
+                            <option value="">Select District</option>
+                        </select>
+                        <button id="create-room-btn" class="btn-primary">
+                            <i class="fas fa-rocket"></i> Create Room
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ========== CHAT AREA ========== -->
+        <div class="chat-area">
+            <div class="chat-header glass">
+                <div class="chat-room-info">
+                    <h3 id="chat-room-name">Select a room</h3>
+                    <p id="chat-room-meta">0 members • 0 online</p>
+                </div>
+                <div class="chat-actions">
+                    <button id="call-btn" class="call-btn" title="Start Call">
+                        <i class="fas fa-phone"></i>
+                    </button>
+                    <button id="end-call-btn" class="call-btn end-call" title="End Call" style="display:none;">
+                        <i class="fas fa-phone-slash"></i>
+                    </button>
+                    <button id="theme-toggle" class="theme-btn" title="Toggle Theme">
+                        <
